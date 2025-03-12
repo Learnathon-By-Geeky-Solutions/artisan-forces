@@ -1,4 +1,4 @@
-name: SonarCloud Analysis
+name: Test Coverage for SonarCloud
 
 on:
   push:
@@ -9,53 +9,53 @@ on:
       - '**'
 
 jobs:
-  analyze:
-    name: Analyze Code
+  test:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Ensures full history is fetched
 
-      # Set up PHP for Laravel
-      - name: Set up PHP
+      - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
           tools: composer, phpunit
           coverage: xdebug
 
-      - name: Install PHP Dependencies
+      - name: Install Dependencies
         run: composer install --prefer-dist --no-progress --no-suggest
-        working-directory: ./backend
 
-      - name: Set up Laravel Environment
-        run: |
-          cp .env.example .env
-          php artisan key:generate
-        working-directory: ./backend
+      - name: Setup Laravel Environment
+        run: cp .env.example .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate
+
+      - name: Fix PHPUnit Permissions
+        run: chmod +x vendor/bin/phpunit
 
       - name: Run PHPUnit Tests with Coverage
-        run: php artisan test --coverage-clover=coverage.xml
-        working-directory: ./backend
+        run: vendor/bin/phpunit --coverage-clover=coverage.xml
 
-      # Set up Node.js for React
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      - name: Verify Coverage File
+        run: ls -l coverage.xml || (echo "Coverage file missing!" && exit 1)
+
+      - name: Upload Coverage Report to Codecov
+        uses: codecov/codecov-action@v3
         with:
-          node-version: '16'
+          file: ./coverage.xml
+          fail_ci_if_error: true
 
-      - name: Install Node.js Dependencies
-        run: npm install
-        working-directory: ./frontend
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: test
 
-      - name: Run React Tests with Coverage
-        run: npm test -- --coverage --coverageReporters=lcov
-        working-directory: ./frontend
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      # SonarCloud Analysis
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@master
         env:
@@ -63,14 +63,16 @@ jobs:
         with:
           args: >
             -Dsonar.organization=${{ secrets.SONAR_ORG }}
-            -Dsonar.projectKey=your_project_key
-            -Dsonar.sources=backend,frontend
-            -Dsonar.php.coverage.reportPaths=backend/coverage.xml
-            -Dsonar.javascript.lcov.reportPaths=frontend/coverage/lcov.info
+            -Dsonar.projectKey=Learnathon-By-Geeky-Solutions_php-pulse
+            -Dsonar.php.coverage.reportPaths=coverage.xml
             -Dsonar.php.version=8.2
 
-      # Clean up
-      - name: Clean up
+  post-analysis:
+    name: Post Analysis
+    runs-on: ubuntu-latest
+    needs: sonarcloud
+    steps:
+      - name: Cleanup (optional)
         run: |
-          rm -f backend/coverage.xml
-          rm -rf frontend/coverage
+          echo "Cleaning up temporary files"
+          rm -f coverage.xml
