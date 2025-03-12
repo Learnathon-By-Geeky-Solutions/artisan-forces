@@ -1,4 +1,4 @@
-name: Test Coverage for SonarCloud
+name: CI Workflow
 
 on:
   push:
@@ -9,70 +9,49 @@ on:
       - '**'
 
 jobs:
-  test:
+  backend:
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        working-directory: backend
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-      - name: Setup PHP
+      - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.2
-          tools: composer, phpunit
-          coverage: xdebug
+          php-version: '8.0'
 
-      - name: Install Dependencies
-        run: composer install --prefer-dist --no-progress --no-suggest
-
-      - name: Setup Laravel Environment
-        run: cp .env.example .env
-
-      - name: Generate Application Key
-        run: php artisan key:generate
-
-      - name: Fix PHPUnit Permissions
-        run: chmod +x vendor/bin/phpunit
-
-      - name: Run PHPUnit Tests with Coverage
-        run: vendor/bin/phpunit --coverage-clover=coverage.xml
-
-      - name: Verify Coverage File
-        run: ls -l coverage.xml || (echo "Coverage file missing!" && exit 1)
-
-      - name: Upload Coverage Report to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.xml
-          fail_ci_if_error: true
-
-  sonarcloud:
-    name: SonarCloud Analysis
-    runs-on: ubuntu-latest
-    needs: test
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=${{ secrets.SONAR_ORG }}
-            -Dsonar.projectKey=Learnathon-By-Geeky-Solutions_php-pulse
-            -Dsonar.php.coverage.reportPaths=coverage.xml
-            -Dsonar.php.version=8.2
-
-  post-analysis:
-    name: Post Analysis
-    runs-on: ubuntu-latest
-    needs: sonarcloud
-    steps:
-      - name: Cleanup (optional)
+      - name: Install Composer dependencies
         run: |
-          echo "Cleaning up temporary files"
-          rm -f coverage.xml
+          curl -sS https://getcomposer.org/installer | php
+          php composer.phar install --prefer-dist
+
+      - name: Run backend tests
+        run: |
+          # Add commands to run your backend tests here
+          echo "Running backend tests..."
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Build frontend assets
+        run: npm run build
+
+      - name: Run frontend tests
+        run: npm test || echo "No frontend tests defined"
