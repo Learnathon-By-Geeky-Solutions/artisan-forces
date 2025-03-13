@@ -21,7 +21,7 @@ jobs:
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.0'
+          php-version: '8.2'  # Changed from 8.0 to 8.2
 
       - name: Install Composer dependencies
         run: |
@@ -30,7 +30,6 @@ jobs:
 
       - name: Run backend tests
         run: |
-          # Add commands to run your backend tests here
           echo "Running backend tests..."
 
   frontend:
