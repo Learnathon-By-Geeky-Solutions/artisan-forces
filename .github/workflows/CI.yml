@@ -16,21 +16,27 @@ jobs:
         working-directory: backend
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'  # Changed from 8.0 to 8.2
+          php-version: '8.2'
+          coverage: pcov
 
       - name: Install Composer dependencies
         run: |
-          curl -sS https://getcomposer.org/installer | php
-          php composer.phar install --prefer-dist
+          composer install --prefer-dist --no-interaction
 
-      - name: Run backend tests
+      - name: Run PHP tests with coverage
         run: |
-          echo "Running backend tests..."
+          ./vendor/bin/phpunit --coverage-clover=coverage.xml
+
+      - name: Upload PHP coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: php-coverage-report
+          path: backend/coverage.xml
 
   frontend:
     runs-on: ubuntu-latest
@@ -39,24 +45,28 @@ jobs:
         working-directory: frontend
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: 18
 
       - name: Install Node.js dependencies
-        run: npm install
+        run: npm ci
 
-      - name: Build frontend assets
-        run: npm run build
+      - name: Run frontend tests with coverage
+        run: |
+          npm test -- --coverage --watchAll=false
 
-      - name: Run frontend tests
-        run: npm test || echo "No frontend tests defined"
+      - name: Upload JS coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: js-coverage-report
+          path: frontend/coverage/lcov.info
 
   sonarcloud:
-    needs: [ backend, frontend ]
+    needs: [backend, frontend]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
